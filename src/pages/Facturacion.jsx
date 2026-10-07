@@ -1,0 +1,45 @@
+import { startTransition, useEffect, useState } from 'react'
+import { Printer, Receipt } from 'lucide-react'
+import Button from '../components/ui/Button'
+import { PageLoader } from '../components/ui/Loading'
+import Select from '../components/ui/Select'
+import StatusBadge from '../components/ui/StatusBadge'
+import { getClientes } from '../services/clientes.service'
+import { CONDICION_IVA, IVA_FACTURA, createFactura, getFacturaByEntregaId } from '../services/facturas.service'
+import { getCobroByOrdenCompraId } from '../services/cobros.service'
+import { getEntregaById, getEntregas } from '../services/entregas.service'
+import { getOrdenCompraById } from '../services/ordenesCompra.service'
+import { getProductos } from '../services/productos.service'
+
+const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })
+const fechaActual = () => { const fecha = new Date(); return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}` }
+const fechaVisible = (fecha) => fecha ? new Date(`${fecha}T00:00:00`).toLocaleDateString('es-AR') : '-'
+
+function Facturacion() {
+  const [entregas, setEntregas] = useState([])
+  const [clientes, setClientes] = useState([])
+  const [productos, setProductos] = useState([])
+  const [entregaId, setEntregaId] = useState('')
+  const [entrega, setEntrega] = useState(null)
+  const [orden, setOrden] = useState(null)
+  const [cobro, setCobro] = useState(null)
+  const [factura, setFactura] = useState(null)
+  const [cargando, setCargando] = useState(true)
+  const [guardando, setGuardando] = useState(false)
+  const [feedback, setFeedback] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => { Promise.all([getEntregas(), getClientes(), getProductos()]).then(([datosEntregas, datosClientes, datosProductos]) => startTransition(() => { setEntregas(datosEntregas.filter((item) => item.estado === 'Entregada')); setClientes(datosClientes); setProductos(datosProductos); setCargando(false) })).catch(() => { setError('No se pudieron cargar las entregas para facturar.'); setCargando(false) }) }, [])
+  async function seleccionarEntrega(event) { const valor = event.target.value; setEntregaId(valor); setFeedback(null); setError(''); if (!valor) { setEntrega(null); setOrden(null); setCobro(null); setFactura(null); return } const entregaSeleccionada = await getEntregaById(Number(valor)); const ordenSeleccionada = await getOrdenCompraById(entregaSeleccionada.ordenCompraId); const [cobroAsociado, facturaExistente] = await Promise.all([getCobroByOrdenCompraId(ordenSeleccionada.id), getFacturaByEntregaId(entregaSeleccionada.id)]); setEntrega(entregaSeleccionada); setOrden(ordenSeleccionada); setCobro(cobroAsociado); setFactura(facturaExistente); if (facturaExistente) setFeedback({ type: 'info', text: `La entrega ya posee la factura ${facturaExistente.numero}.` }) }
+  const clienteActual = clientes.find((item) => item.id === orden?.clienteId)
+  const cliente = factura?.cliente ?? clienteActual
+  const items = factura?.items ?? orden?.items.map((item) => ({ ...item, descripcion: productos.find((producto) => producto.id === item.productoId)?.descripcion ?? `Producto #${item.productoId}` })) ?? []
+  const subtotal = factura?.subtotal ?? items.reduce((acumulado, item) => acumulado + item.subtotal, 0)
+  const iva = factura?.iva ?? IVA_FACTURA
+  const total = factura?.total ?? subtotal + iva
+  const puedeFacturar = Boolean(entrega && entrega.estado === 'Entregada' && orden?.estado === 'Despachada' && cobro?.estado === 'Aprobado' && !factura)
+  async function generarFactura() { if (!puedeFacturar) return; setGuardando(true); setError(''); try { const creada = await createFactura({ entregaId: entrega.id, ordenCompraId: orden.id, pedidoId: entrega.pedidoId, clienteId: entrega.clienteId, fecha: fechaActual(), cliente: { id: cliente.id, razonSocial: cliente.razonSocial, cuit: cliente.cuit, tipoCliente: cliente.tipoCliente }, items: items.map(({ productoId, descripcion, cantidad, precioUnitario, subtotal: itemSubtotal }) => ({ productoId, descripcion, cantidad, precioUnitario, subtotal: itemSubtotal })), subtotal, iva, total }); setFactura(creada); setFeedback({ type: 'success', text: `Factura ${creada.numero} generada correctamente.` }) } catch { setError('No se pudo generar la factura. La operación puede tener una factura existente o no cumplir las condiciones requeridas.') } finally { setGuardando(false) } }
+  if (cargando) return <PageLoader label="Cargando facturación..." />
+  return <section className="printable-invoice"><div className="mb-8"><p className="mb-2 text-xs font-bold uppercase tracking-widest text-blue-600">Módulo comercial</p><h1 className="text-3xl font-bold tracking-tight text-slate-900">Facturación</h1><p className="mt-2 text-sm text-slate-500">Emisión de facturas para operaciones entregadas</p></div>{feedback && <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700" role="status">{feedback.text}</div>}{error && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</div>}<div className="print-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50 sm:p-7"><Select label="Operación entregada" id="factura-entrega" value={entregaId} onChange={seleccionarEntrega}><option value="">Seleccionar entrega</option>{entregas.map((item) => { const persona = clientes.find((clienteItem) => clienteItem.id === item.clienteId); return <option key={item.id} value={item.id}>{item.numero} - OC {String(item.ordenCompraId).padStart(3, '0')} - {persona?.razonSocial ?? 'Cliente'}</option> })}</Select>{!entregas.length && <p className="text-sm text-slate-500">No hay operaciones entregadas disponibles.</p>}</div>{entrega && <div className="mt-7 rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50 sm:p-8"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs text-slate-500">Factura</p><h2 className="mt-1 text-xl font-bold text-slate-900">{factura?.numero ?? 'Nueva factura'}</h2></div>{factura && <StatusBadge status="success">{factura.estado}</StatusBadge>}</div><div className="mt-6 grid grid-cols-1 gap-5 border-y border-slate-100 py-5 md:grid-cols-3"><div><span className="block text-xs text-slate-500">Cliente</span><strong className="mt-1 block text-sm text-slate-800">{cliente?.razonSocial ?? '-'}</strong></div><div><span className="block text-xs text-slate-500">CUIT</span><strong className="mt-1 block text-sm text-slate-800">{cliente?.cuit ?? '-'}</strong></div><div><span className="block text-xs text-slate-500">Condición IVA</span><strong className="mt-1 block text-sm text-slate-800">{CONDICION_IVA}</strong></div></div><div className="mb-5 flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-600"><span>Entrega: <strong className="text-slate-800">{entrega.numero}</strong></span><span>Fecha: <strong className="text-slate-800">{fechaVisible(factura?.fecha ?? entrega.fecha)}</strong></span></div><div className="overflow-x-auto rounded-lg border border-slate-200"><table className="w-full min-w-[650px] border-collapse"><thead className="bg-slate-50"><tr>{['Producto', 'Cantidad', 'Precio Unitario', 'Subtotal'].map((titulo) => <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500" key={titulo}>{titulo}</th>)}</tr></thead><tbody>{items.map((item) => <tr className="border-t border-slate-100" key={item.productoId}><td className="px-4 py-3 text-sm font-medium text-slate-700">{item.descripcion}</td><td className="px-4 py-3 text-sm text-slate-600">{item.cantidad}</td><td className="px-4 py-3 text-sm text-slate-600">{moneda.format(item.precioUnitario)}</td><td className="px-4 py-3 text-sm font-semibold text-slate-700">{moneda.format(item.subtotal)}</td></tr>)}</tbody></table></div><div className="ml-auto mt-6 max-w-xs space-y-3 border-t border-slate-100 pt-5 text-sm"><div className="flex justify-between text-slate-500"><span>Subtotal</span><strong className="text-slate-800">{moneda.format(subtotal)}</strong></div><div className="flex justify-between text-slate-500"><span>IVA</span><strong className="text-slate-800">{moneda.format(iva)}</strong></div><div className="flex justify-between border-t border-slate-200 pt-3 text-base"><span className="font-semibold text-slate-700">Total</span><strong className="text-xl text-slate-900">{moneda.format(total)}</strong></div></div><div className="print-hidden mt-7 flex justify-end gap-3 border-t border-slate-100 pt-5"><Button type="button" variant="success" disabled={!puedeFacturar || guardando} onClick={generarFactura} className="inline-flex items-center justify-center gap-2 sm:w-auto"><Receipt size={17} />Generar factura</Button>{factura && <Button type="button" variant="secondary" onClick={() => window.print()} className="inline-flex items-center justify-center gap-2 sm:w-auto"><Printer size={17} />Imprimir</Button>}</div></div>}</section>
+}
+export default Facturacion

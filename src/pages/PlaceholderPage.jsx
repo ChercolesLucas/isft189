@@ -1,0 +1,2 @@
+function PlaceholderPage({ titulo }) { return <section className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/50"><p className="mb-2 text-xs font-bold uppercase tracking-widest text-blue-600">Módulo</p><h1 className="text-3xl font-bold tracking-tight text-slate-900">{titulo}</h1><p className="mt-3 text-sm text-slate-500">Este módulo está pendiente de implementación.</p></section> }
+export default PlaceholderPage

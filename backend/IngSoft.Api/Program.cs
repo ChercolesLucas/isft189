@@ -1,0 +1,20 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using IngSoft.Api.Data;
+using IngSoft.Api.Middleware;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddControllers().AddJsonOptions(o => { o.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase; o.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase; o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; });
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(o => { o.SwaggerDoc("v1", new OpenApiInfo { Title = "IngSoft API", Version = "v1", Description = "API REST de gestión comercial" }); });
+var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? ["http://localhost:5173", "http://localhost:3000"];
+builder.Services.AddCors(o => o.AddPolicy("Frontend", p => p.WithOrigins(origins).AllowAnyMethod().AllowAnyHeader()));
+var app = builder.Build();
+app.UseMiddleware<ErrorHandlingMiddleware>(); app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseSwagger(); app.UseSwaggerUI(); app.UseCors("Frontend"); app.MapControllers();
+app.Run();

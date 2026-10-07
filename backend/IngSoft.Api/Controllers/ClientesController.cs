@@ -1,0 +1,10 @@
+using IngSoft.Api.Data; using IngSoft.Api.DTOs; using IngSoft.Api.Entities; using Microsoft.AspNetCore.Mvc; using Microsoft.EntityFrameworkCore;
+namespace IngSoft.Api.Controllers;
+[ApiController, Route("api/clientes")]
+public class ClientesController(AppDbContext db) : ControllerBase
+{
+    [HttpGet, ProducesResponseType(typeof(IEnumerable<ClienteDto>), 200)] public async Task<IActionResult> Get() => Ok(await db.Clientes.AsNoTracking().Select(x => new ClienteDto(x.IdCliente,x.RazonSocial,x.Cuit,x.TipoCliente,x.EstadoCredito)).ToListAsync());
+    [HttpGet("{id:int}"), ProducesResponseType(typeof(ClienteDto),200), ProducesResponseType(404)] public async Task<IActionResult> Get(int id) { var x=await db.Clientes.FindAsync(id); return x is null ? NotFound(new ErrorResponse("Cliente no encontrado.",404)) : Ok(new ClienteDto(x.IdCliente,x.RazonSocial,x.Cuit,x.TipoCliente,x.EstadoCredito)); }
+    [HttpPost, ProducesResponseType(typeof(ClienteDto),201), ProducesResponseType(400), ProducesResponseType(404)] public async Task<IActionResult> Save(ClienteRequest r) { Cliente x; var status=201; if(r.IdCliente is int id){ x=await db.Clientes.FindAsync(id) ?? null!; if(x is null)return NotFound(new ErrorResponse("Cliente no encontrado.",404)); status=200; } else { x=new(); db.Clientes.Add(x); } x.RazonSocial=r.RazonSocial; x.Cuit=r.Cuit; x.TipoCliente=r.TipoCliente; x.EstadoCredito=r.EstadoCredito; await db.SaveChangesAsync(); var dto=new ClienteDto(x.IdCliente,x.RazonSocial,x.Cuit,x.TipoCliente,x.EstadoCredito); return status==201 ? CreatedAtAction(nameof(Get),new{id=x.IdCliente},dto) : Ok(dto); }
+    [HttpDelete("{id:int}"), ProducesResponseType(204), ProducesResponseType(404), ProducesResponseType(400)] public async Task<IActionResult> Delete(int id) { var x=await db.Clientes.FindAsync(id); if(x is null)return NotFound(new ErrorResponse("Cliente no encontrado.",404)); if(await db.Pedidos.AnyAsync(p=>p.IdCliente==id))return BadRequest(new ErrorResponse("No se puede eliminar un cliente con pedidos asociados.",400)); db.Clientes.Remove(x); await db.SaveChangesAsync(); return NoContent(); }
+}
