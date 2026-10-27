@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Ban, CheckCircle2, Pencil, Plus, Trash2 } from 'lucide-react'
 import Button from '../components/ui/Button'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import Input from '../components/ui/Input'
@@ -7,7 +7,7 @@ import { PageLoader } from '../components/ui/Loading'
 import Select from '../components/ui/Select'
 import StatusBadge from '../components/ui/StatusBadge'
 import { getClientes } from '../services/clientes.service'
-import { createPedido, deletePedido, getPedidos, updatePedido } from '../services/pedidos.service'
+import { anularPedido, createPedido, getPedidos, updatePedido } from '../services/pedidos.service'
 import { getProductos } from '../services/productos.service'
 
 const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 })
@@ -23,6 +23,7 @@ function Pedidos() {
   const [productos, setProductos] = useState([])
   const [pedidos, setPedidos] = useState([])
   const [clienteId, setClienteId] = useState('')
+  const [clienteBusqueda, setClienteBusqueda] = useState('')
   const [fecha, setFecha] = useState(fechaActual)
   const [productoId, setProductoId] = useState('')
   const [cantidad, setCantidad] = useState('')
@@ -86,6 +87,7 @@ function Pedidos() {
 
   function limpiarPedido() {
     setClienteId('')
+    setClienteBusqueda('')
     setFecha(fechaActual())
     setProductoId('')
     setCantidad('')
@@ -102,6 +104,7 @@ function Pedidos() {
     }
     setPedidoEditandoId(pedido.id)
     setClienteId(String(pedido.clienteId))
+    setClienteBusqueda(pedido.cliente ?? clientes.find((cliente) => cliente.id === pedido.clienteId)?.razonSocial ?? '')
     setFecha(pedido.fecha)
     setItems(pedido.items.map((item) => ({ ...item })))
     setProductoId('')
@@ -141,25 +144,25 @@ function Pedidos() {
     }
   }
 
-  function solicitarEliminacion(pedido) {
+  function solicitarAnulacion(pedido) {
     if (pedido.estado !== 'PENDIENTE') {
-      setFeedback({ type: 'info', text: 'Solo se pueden eliminar pedidos pendientes.' })
+      setFeedback({ type: 'info', text: 'Solo se pueden anular pedidos pendientes.' })
       return
     }
     setPedidoAEliminar(pedido)
   }
 
-  async function confirmarEliminacion() {
+  async function confirmarAnulacion() {
     if (!pedidoAEliminar) return
     setGuardando(true)
     try {
-      await deletePedido(pedidoAEliminar.id)
+      await anularPedido(pedidoAEliminar.id)
       await recargarPedidos()
       if (pedidoEditandoId === pedidoAEliminar.id) limpiarPedido()
       setPedidoAEliminar(null)
-      setFeedback({ type: 'success', text: 'Pedido eliminado correctamente.' })
+      setFeedback({ type: 'success', text: 'Pedido anulado correctamente.' })
     } catch (error) {
-      setFeedback({ type: 'error', text: error.message || 'No se pudo eliminar el pedido.' })
+      setFeedback({ type: 'error', text: error.message || 'No se pudo anular el pedido.' })
       setPedidoAEliminar(null)
     } finally {
       setGuardando(false)
@@ -189,10 +192,8 @@ function Pedidos() {
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50 sm:p-7">
           <h2 className="mb-6 text-base font-semibold text-slate-800">Datos del pedido</h2>
           <div className="grid grid-cols-1 gap-x-5 md:grid-cols-2">
-            <Select label="Cliente" id="pedido-cliente" value={clienteId} onChange={(event) => { setClienteId(event.target.value); limpiarError('clienteId') }} error={errores.clienteId}>
-              <option value="">Seleccionar cliente</option>
-              {clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.razonSocial}</option>)}
-            </Select>
+            <Input label="Cliente" id="pedido-cliente" value={clienteBusqueda} list="clientes-pedido-opciones" placeholder="Escribí para buscar un cliente" onChange={(event) => { const texto = event.target.value; const cliente = clientes.find((item) => item.razonSocial.toLocaleLowerCase() === texto.trim().toLocaleLowerCase()); setClienteBusqueda(texto); setClienteId(cliente ? String(cliente.id) : ''); limpiarError('clienteId') }} error={errores.clienteId} />
+            <datalist id="clientes-pedido-opciones">{clientes.map((cliente) => <option key={cliente.id} value={cliente.razonSocial} />)}</datalist>
             <Input label="Fecha" id="pedido-fecha" type="date" value={fecha} onChange={(event) => { setFecha(event.target.value); limpiarError('fecha') }} error={errores.fecha} />
           </div>
         </div>
@@ -231,7 +232,7 @@ function Pedidos() {
 
       <div className="mt-9 rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50 sm:p-7">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="text-base font-semibold text-slate-800">Pedidos registrados</h2><p className="mt-1 text-sm text-slate-500">Los pedidos pendientes pueden modificarse o eliminarse.</p></div>
+          <div><h2 className="text-base font-semibold text-slate-800">Pedidos registrados</h2><p className="mt-1 text-sm text-slate-500">Los pedidos pendientes pueden modificarse o anularse; los anulados se conservan.</p></div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">{pedidos.length} registros</span>
         </div>
         <div className="overflow-x-auto rounded-lg border border-slate-200">
@@ -241,14 +242,14 @@ function Pedidos() {
               {pedidos.length ? pedidos.map((pedido) => {
                 const editable = pedido.estado === 'PENDIENTE'
                 const unidades = pedido.items.reduce((suma, item) => suma + item.cantidad, 0)
-                return <tr className={`border-t border-slate-100 ${pedidoEditandoId === pedido.id ? 'bg-blue-50' : ''}`} key={pedido.id}><td className="px-4 py-3 text-sm font-semibold text-slate-800">#{pedido.numero}</td><td className="px-4 py-3 text-sm text-slate-600">{fechaVisible(pedido.fecha)}</td><td className="px-4 py-3 text-sm text-slate-700">{pedido.cliente}</td><td className="px-4 py-3 text-sm text-slate-600">{unidades}</td><td className="px-4 py-3 text-sm text-slate-600">{pedido.items.length}</td><td className="px-4 py-3 text-sm font-semibold text-slate-700">{moneda.format(pedido.total)}</td><td className="px-4 py-3"><StatusBadge status={estadoColor[pedido.estado] ?? 'neutral'}>{pedido.estado}</StatusBadge></td><td className="px-4 py-3"><div className="flex gap-3"><button type="button" disabled={!editable || guardando} className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-35" onClick={() => editarPedido(pedido)}><Pencil size={15} />Modificar</button><button type="button" disabled={!editable || guardando} className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-35" onClick={() => solicitarEliminacion(pedido)}><Trash2 size={15} />Eliminar</button></div></td></tr>
+                return <tr className={`border-t border-slate-100 ${pedidoEditandoId === pedido.id ? 'bg-blue-50' : ''}`} key={pedido.id}><td className="px-4 py-3 text-sm font-semibold text-slate-800">#{pedido.numero}</td><td className="px-4 py-3 text-sm text-slate-600">{fechaVisible(pedido.fecha)}</td><td className="px-4 py-3 text-sm text-slate-700">{pedido.cliente}</td><td className="px-4 py-3 text-sm text-slate-600">{unidades}</td><td className="px-4 py-3 text-sm text-slate-600">{pedido.items.length}</td><td className="px-4 py-3 text-sm font-semibold text-slate-700">{moneda.format(pedido.total)}</td><td className="px-4 py-3"><StatusBadge status={estadoColor[pedido.estado] ?? 'neutral'}>{pedido.estado}</StatusBadge></td><td className="px-4 py-3"><div className="flex gap-3"><button type="button" disabled={!editable || guardando} className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-35" onClick={() => editarPedido(pedido)}><Pencil size={15} />Modificar</button><button type="button" disabled={!editable || guardando} className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-35" onClick={() => solicitarAnulacion(pedido)}><Ban size={15} />Anular</button></div></td></tr>
               }) : <tr><td className="px-4 py-10 text-center text-sm text-slate-500" colSpan="8">No hay pedidos registrados.</td></tr>}
             </tbody>
           </table>
         </div>
       </div>
 
-      <ConfirmDialog open={Boolean(pedidoAEliminar)} title="Eliminar pedido" message={`¿Seguro que deseas eliminar el pedido ${pedidoAEliminar?.numero ?? ''}? Esta acción no se puede deshacer.`} confirmLabel="Eliminar pedido" confirmVariant="danger" loading={guardando} onConfirm={confirmarEliminacion} onCancel={() => setPedidoAEliminar(null)} />
+      <ConfirmDialog open={Boolean(pedidoAEliminar)} title="Anular pedido" message={`¿Seguro que deseas anular el pedido ${pedidoAEliminar?.numero ?? ''}? El registro se conservará en la base de datos.`} confirmLabel="Anular pedido" confirmVariant="danger" loading={guardando} onConfirm={confirmarAnulacion} onCancel={() => setPedidoAEliminar(null)} />
     </section>
   )
 }

@@ -14,7 +14,7 @@ const toFactura = (dto) => ({
   clienteId: dto.idCliente,
   fecha: dto.fechaEmision.slice(0, 10),
   cae: dto.cae,
-  estado: 'Emitida',
+  estado: dto.estado ?? 'EMITIDA',
   cliente: { id: dto.cliente.idCliente, razonSocial: dto.cliente.razonSocial, cuit: dto.cliente.cuit, tipoCliente: dto.cliente.tipoCliente },
   items: dto.items.map((item) => ({ id: item.idDetalle, productoId: item.idProducto, descripcion: item.producto, cantidad: item.cantidad, precioUnitario: item.precioUnitario, subtotal: item.subtotal })),
   subtotal: dto.montoTotal,
@@ -26,3 +26,7 @@ export async function getFacturas() { return (await apiRequest('/facturas')).map
 export async function getFacturaById(id) { return toFactura(await apiRequest(`/facturas/${Number(id)}`)) }
 export async function getFacturaByEntregaId(entregaId) { const dto = await apiRequest(`/facturas/remito/${Number(entregaId)}`); return dto ? toFactura(dto) : null }
 export async function createFactura(data) { return toFactura(await apiRequest('/facturas/generar', { method: 'POST', body: JSON.stringify({ idRemito: Number(data.entregaId) }) })) }
+
+export async function anularFactura(id) {
+  return toFactura(await apiRequest(`/facturas/${Number(id)}/anular`, { method: 'POST' }))
+}

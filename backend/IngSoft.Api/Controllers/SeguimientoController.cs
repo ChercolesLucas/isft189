@@ -82,7 +82,7 @@ public class SeguimientoController(AppDbContext db) : ControllerBase
 
         FacturaDto? facturaDto = factura is null || remito is null || orden is null ? null : new FacturaDto(
             factura.IdFactura, remito.IdRemito, orden.IdOc, pedido.IdPedido, pedido.IdCliente,
-            factura.NroFactura, factura.FechaEmision, factura.Cae, factura.MontoTotal, cliente, items);
+            factura.NroFactura, factura.FechaEmision, factura.Cae, factura.MontoTotal, factura.Estado, cliente, items);
 
         return Ok(new SeguimientoDto(
             pedidoDto, cliente, cotizacionDto, ordenDto, remitoDto, cobroDto, entregaDto, facturaDto));

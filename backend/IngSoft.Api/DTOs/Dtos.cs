@@ -25,6 +25,6 @@ public record RemitoDto(int IdRemito, int IdOc, int IdPedido, int IdCliente, Dat
 public class RemitoRequest { [Range(1, int.MaxValue)] public int IdOc { get; set; } public string? FirmaDigitalCliente { get; set; } }
 public record EntregaDto(int IdEntrega, int IdRemito, int IdOc, int? IdCobro, int IdPedido, int IdCliente, DateTime FechaEntrega, string Estado, IEnumerable<PedidoItemDto> Items);
 public class EntregaRequest { [Range(1, int.MaxValue)] public int IdOc { get; set; } public string? FirmaDigitalCliente { get; set; } }
-public record FacturaDto(int IdFactura, int IdRemito, int IdOc, int IdPedido, int IdCliente, string NroFactura, DateTime FechaEmision, string Cae, decimal MontoTotal, ClienteDto Cliente, IEnumerable<PedidoItemDto> Items);
+public record FacturaDto(int IdFactura, int IdRemito, int IdOc, int IdPedido, int IdCliente, string NroFactura, DateTime FechaEmision, string Cae, decimal MontoTotal, string Estado, ClienteDto Cliente, IEnumerable<PedidoItemDto> Items);
 public class FacturaRequest { [Range(1, int.MaxValue)] public int IdRemito { get; set; } public string? NroFactura { get; set; } }
 public record SeguimientoDto(PedidoDto Pedido, ClienteDto Cliente, CotizacionDto? Cotizacion, OrdenCompraDto? OrdenCompra, RemitoDto? Remito, CobroDto? Cobro, EntregaDto? Entrega, FacturaDto? Factura);

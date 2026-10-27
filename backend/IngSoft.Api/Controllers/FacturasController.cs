@@ -59,11 +59,24 @@ public class FacturasController(AppDbContext db) : ControllerBase
             FechaEmision = DateTime.Now,
             Cae = $"CAE-{Guid.NewGuid():N}",
             MontoTotal = remito.OrdenCompra.Cotizacion.MontoTotal
+            ,Estado = "EMITIDA"
         };
         db.Facturas.Add(factura);
         await db.SaveChangesAsync();
         var creada = await Query().SingleAsync(x => x.IdFactura == factura.IdFactura);
         return CreatedAtAction(nameof(GetById), new { id = factura.IdFactura }, ToDto(creada));
+    }
+
+    [HttpPost("{id:int}/anular")]
+    public async Task<IActionResult> Cancel(int id)
+    {
+        var factura = await db.Facturas.FirstOrDefaultAsync(x => x.IdFactura == id);
+        if (factura is null) return NotFound(new ErrorResponse("Factura no encontrada.", 404));
+        if (factura.Estado == "ANULADA") return BadRequest(new ErrorResponse("La factura ya está anulada.", 400));
+        factura.Estado = "ANULADA";
+        await db.SaveChangesAsync();
+        var actualizada = await Query().SingleAsync(x => x.IdFactura == id);
+        return Ok(ToDto(actualizada));
     }
 
     private IQueryable<Factura> Query() => db.Facturas.AsNoTracking()
@@ -94,6 +107,7 @@ public class FacturasController(AppDbContext db) : ControllerBase
             factura.FechaEmision,
             factura.Cae,
             factura.MontoTotal,
+            factura.Estado,
             new ClienteDto(cliente.IdCliente, cliente.RazonSocial, cliente.Cuit, cliente.TipoCliente, cliente.EstadoCredito),
             pedido.Detalles.Select(x => new PedidoItemDto(
                 x.IdDetalle, x.IdProducto, x.Producto.Descripcion, x.Cantidad,

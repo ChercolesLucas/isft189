@@ -90,13 +90,19 @@ public class PedidosController(AppDbContext db) : ControllerBase
             .FirstOrDefaultAsync(x => x.IdPedido == id);
 
         if (pedido is null) return NotFound(new ErrorResponse("Pedido no encontrado.", 404));
-        if (pedido.Estado != "PENDIENTE" || pedido.Cotizaciones.Count != 0)
-            return BadRequest(new ErrorResponse("Solo se pueden eliminar pedidos pendientes sin cotización.", 400));
+        return BadRequest(new ErrorResponse("Los pedidos no se eliminan. Utilice la operación de anulación.", 400));
+    }
 
-        db.DetallesItems.RemoveRange(pedido.Detalles);
-        db.Pedidos.Remove(pedido);
+    [HttpPost("{id:int}/anular")]
+    public async Task<IActionResult> Cancel(int id)
+    {
+        var pedido = await db.Pedidos.FirstOrDefaultAsync(x => x.IdPedido == id);
+        if (pedido is null) return NotFound(new ErrorResponse("Pedido no encontrado.", 404));
+        if (pedido.Estado != "PENDIENTE") return BadRequest(new ErrorResponse("Solo se pueden anular pedidos pendientes.", 400));
+        pedido.Estado = "ANULADA";
         await db.SaveChangesAsync();
-        return NoContent();
+        var actualizado = await Query().SingleAsync(x => x.IdPedido == id);
+        return Ok(ToDto(actualizado));
     }
 
     private async Task<(Dictionary<int, Producto>? Products, IActionResult? Error)> ValidateRequest(PedidoRequest request)

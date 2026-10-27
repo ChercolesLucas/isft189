@@ -5,4 +5,6 @@ export async function getPedidos() { return (await apiRequest('/pedidos')).map(t
 export async function getPedidoById(id) { return toPedido(await apiRequest(`/pedidos/${id}`)) }
 export async function createPedido(pedido) { return toPedido(await apiRequest('/pedidos', { method: 'POST', body: JSON.stringify(toPayload(pedido)) })) }
 export async function updatePedido(id, pedido) { return toPedido(await apiRequest(`/pedidos/${Number(id)}`, { method: 'PUT', body: JSON.stringify(toPayload(pedido)) })) }
-export async function deletePedido(id) { await apiRequest(`/pedidos/${Number(id)}`, { method: 'DELETE' }) }
+export async function anularPedido(id) {
+  return toPedido(await apiRequest(`/pedidos/${Number(id)}/anular`, { method: 'POST' }))
+}
