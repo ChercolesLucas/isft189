@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace IngSoft.Api.Controllers;
 
 [ApiController, Route("api/auth")]
-public class AuthController(AppDbContext db) : ControllerBase
+public class AuthController(AppDbContext db, ILogger<AuthController> logger) : ControllerBase
 {
     [HttpPost("login")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
@@ -15,7 +15,12 @@ public class AuthController(AppDbContext db) : ControllerBase
     {
         var correo = request.Correo.Trim().ToLowerInvariant();
         var usuario = await db.Usuarios.AsNoTracking().FirstOrDefaultAsync(x => x.Correo == correo && x.Contrasena == request.Contrasena);
-        if (usuario is null) return Unauthorized(new ErrorResponse("Correo o contraseña incorrectos.", 401));
+        if (usuario is null)
+        {
+            logger.LogWarning("Intento de autenticación rechazado.");
+            return Unauthorized(new ErrorResponse("Correo o contraseña incorrectos.", 401));
+        }
+        logger.LogInformation("Autenticación exitosa. UsuarioId: {UsuarioId}", usuario.IdUsuario);
         return Ok(new LoginResponse(usuario.IdUsuario, usuario.Nombre, usuario.Correo));
     }
 }
