@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace IngSoft.Api.Controllers;
 
 [ApiController, Route("api/facturas")]
-public class FacturasController(AppDbContext db) : ControllerBase
+public class FacturasController(AppDbContext db, ILogger<FacturasController> logger) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<FacturaDto>), StatusCodes.Status200OK)]
@@ -63,6 +63,7 @@ public class FacturasController(AppDbContext db) : ControllerBase
         };
         db.Facturas.Add(factura);
         await db.SaveChangesAsync();
+        logger.LogInformation("Factura emitida correctamente. FacturaId: {FacturaId}, RemitoId: {RemitoId}", factura.IdFactura, factura.IdRemito);
         var creada = await Query().SingleAsync(x => x.IdFactura == factura.IdFactura);
         return CreatedAtAction(nameof(GetById), new { id = factura.IdFactura }, ToDto(creada));
     }
@@ -75,6 +76,7 @@ public class FacturasController(AppDbContext db) : ControllerBase
         if (factura.Estado == "ANULADA") return BadRequest(new ErrorResponse("La factura ya está anulada.", 400));
         factura.Estado = "ANULADA";
         await db.SaveChangesAsync();
+        logger.LogInformation("Factura anulada correctamente. FacturaId: {FacturaId}", id);
         var actualizada = await Query().SingleAsync(x => x.IdFactura == id);
         return Ok(ToDto(actualizada));
     }

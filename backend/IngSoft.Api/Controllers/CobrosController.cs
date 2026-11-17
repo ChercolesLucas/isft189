@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace IngSoft.Api.Controllers;
 
 [ApiController, Route("api/cobros")]
-public class CobrosController(AppDbContext db) : ControllerBase
+public class CobrosController(AppDbContext db, ILogger<CobrosController> logger) : ControllerBase
 {
     private static readonly HashSet<string> MediosValidos = ["TRANSFERENCIA", "EFECTIVO", "OTRO"];
 
@@ -52,6 +52,7 @@ public class CobrosController(AppDbContext db) : ControllerBase
         db.Cobros.Add(cobro);
         orden.Pago = "PENDIENTE";
         await db.SaveChangesAsync();
+        logger.LogInformation("Cobro registrado correctamente. CobroId: {CobroId}, OrdenCompraId: {OrdenCompraId}", cobro.IdCobro, cobro.IdOc);
         return CreatedAtAction(nameof(GetById), new { id = cobro.IdCobro }, ToDto(cobro));
     }
 
@@ -77,6 +78,7 @@ public class CobrosController(AppDbContext db) : ControllerBase
         cobro.OrdenCompra.Pago = estado;
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
+        logger.LogInformation("Estado de cobro actualizado. CobroId: {CobroId}, Estado: {CobroEstado}", cobro.IdCobro, estado);
         return Ok(ToDto(cobro));
     }
 

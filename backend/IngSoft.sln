@@ -4,6 +4,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IngSoft.Api", "IngSoft.Api\IngSoft.Api.csproj", "{B8A4F7F2-7A0C-45B3-9A64-0F31E2B7A8D4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IngSoft.Api.Tests", "IngSoft.Api.Tests\IngSoft.Api.Tests.csproj", "{6F362D4F-ACDF-46B5-A27B-13C3D5E98291}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,5 +16,9 @@ Global
 		{B8A4F7F2-7A0C-45B3-9A64-0F31E2B7A8D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B8A4F7F2-7A0C-45B3-9A64-0F31E2B7A8D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B8A4F7F2-7A0C-45B3-9A64-0F31E2B7A8D4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F362D4F-ACDF-46B5-A27B-13C3D5E98291}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F362D4F-ACDF-46B5-A27B-13C3D5E98291}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F362D4F-ACDF-46B5-A27B-13C3D5E98291}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F362D4F-ACDF-46B5-A27B-13C3D5E98291}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

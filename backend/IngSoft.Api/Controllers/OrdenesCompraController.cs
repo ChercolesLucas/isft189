@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace IngSoft.Api.Controllers;
 
 [ApiController, Route("api/ordenes-compra")]
-public class OrdenesCompraController(AppDbContext db) : ControllerBase
+public class OrdenesCompraController(AppDbContext db, ILogger<OrdenesCompraController> logger) : ControllerBase
 {
     private static readonly HashSet<string> PagosValidos = ["PENDIENTE", "APROBADO", "RECHAZADO"];
 
@@ -60,6 +60,7 @@ public class OrdenesCompraController(AppDbContext db) : ControllerBase
         };
         db.OrdenesCompra.Add(orden);
         await db.SaveChangesAsync();
+        logger.LogInformation("Orden de compra creada correctamente. OrdenCompraId: {OrdenCompraId}", orden.IdOc);
         var creada = await Query().SingleAsync(x => x.IdOc == orden.IdOc);
         return CreatedAtAction(nameof(GetById), new { id = orden.IdOc }, ToDto(creada));
     }
@@ -76,6 +77,7 @@ public class OrdenesCompraController(AppDbContext db) : ControllerBase
         orden.Estado = "VALIDADA";
         orden.Cotizacion.Estado = "APROBADA";
         await db.SaveChangesAsync();
+        logger.LogInformation("Orden de compra validada. OrdenCompraId: {OrdenCompraId}", id);
         return Ok(ToDto(await Query().SingleAsync(x => x.IdOc == id)));
     }
 
@@ -90,6 +92,7 @@ public class OrdenesCompraController(AppDbContext db) : ControllerBase
         if (orden.Estado != "PENDIENTE") return BadRequest(new ErrorResponse("Solo puede cancelarse una orden pendiente.", 400));
         orden.Estado = "CANCELADA";
         await db.SaveChangesAsync();
+        logger.LogInformation("Orden de compra cancelada. OrdenCompraId: {OrdenCompraId}", id);
         return Ok(ToDto(await Query().SingleAsync(x => x.IdOc == id)));
     }
 

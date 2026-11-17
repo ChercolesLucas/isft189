@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace IngSoft.Api.Controllers;
 
 [ApiController, Route("api/pedidos")]
-public class PedidosController(AppDbContext db) : ControllerBase
+public class PedidosController(AppDbContext db, ILogger<PedidosController> logger) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<PedidoDto>), StatusCodes.Status200OK)]
@@ -44,6 +44,7 @@ public class PedidosController(AppDbContext db) : ControllerBase
         AddItems(pedido, request.Items, validation.Products!);
         db.Pedidos.Add(pedido);
         await db.SaveChangesAsync();
+        logger.LogInformation("Pedido creado correctamente. PedidoId: {PedidoId}", pedido.IdPedido);
 
         var creado = await Query().SingleAsync(x => x.IdPedido == pedido.IdPedido);
         return CreatedAtAction(nameof(Get), new { id = pedido.IdPedido }, ToDto(creado));
@@ -73,6 +74,7 @@ public class PedidosController(AppDbContext db) : ControllerBase
         pedido.Detalles.Clear();
         AddItems(pedido, request.Items, validation.Products!);
         await db.SaveChangesAsync();
+        logger.LogInformation("Pedido actualizado correctamente. PedidoId: {PedidoId}", id);
 
         var actualizado = await Query().SingleAsync(x => x.IdPedido == id);
         return Ok(ToDto(actualizado));
@@ -101,6 +103,7 @@ public class PedidosController(AppDbContext db) : ControllerBase
         if (pedido.Estado != "PENDIENTE") return BadRequest(new ErrorResponse("Solo se pueden anular pedidos pendientes.", 400));
         pedido.Estado = "ANULADA";
         await db.SaveChangesAsync();
+        logger.LogInformation("Pedido anulado correctamente. PedidoId: {PedidoId}", id);
         var actualizado = await Query().SingleAsync(x => x.IdPedido == id);
         return Ok(ToDto(actualizado));
     }
